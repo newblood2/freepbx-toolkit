@@ -2,6 +2,18 @@
 
 Claude Code skills and shell scripts for managing FreePBX 17 systems. Works with any SIP trunk provider and Yealink phones.
 
+## Safety
+
+These tools manage **production phone systems** — they modify firewall rules, SIP trunks, phone configs, database records, and 911 routing. A bad command can knock phones offline, lock you out of a server, or break emergency calling.
+
+**Do not run unattended.** Specifically:
+- **Do not** use `claude --dangerously-skip-permissions` or Claude Code's auto-accept mode with these skills. Always review each SSH command and SQL query before it executes.
+- **Do not** use OpenAI Codex's `--full-auto` / `--yolo` mode or any equivalent that bypasses command approval.
+- **Read every command** before approving it. These skills run commands as `root` over SSH — there is no undo for a dropped firewall rule or a bad database UPDATE.
+- **Test on a non-production system first** if possible. If not, have a console/out-of-band access method ready in case SSH access is lost.
+
+Skills that make changes (`firewall-trust`, `fix-nat`, `provision-phone`, `pbx-initialize`) have `disable-model-invocation: true` set, which prevents Claude from running them automatically. Do not override this.
+
 ## Claude Code Skills
 
 Drop the `skills/` directories into `~/.claude/skills/` to get slash commands in Claude Code.
