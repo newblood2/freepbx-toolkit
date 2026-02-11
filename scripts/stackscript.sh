@@ -1,21 +1,27 @@
 #!/bin/bash
 # FreePBX 17 Complete Production Deployment for Linode
-# Version 4.2 - Fixed hostname handling and improved error management
+# Version 5.0 - Provider-agnostic SIP trunk support
+#
+# Works with any SIP trunk provider (VoIP.ms, Telnyx, Flowroute, Twilio, etc.)
 #
 # Linode StackScript UDF Variables
 # <UDF name="client_name" label="Client Company Name" example="Acme Corp" />
 # <UDF name="admin_email" label="Admin Email Address" example="admin@example.com" />
-# <UDF name="voipms_username" label="VoIP.ms Sub-Account Username" example="123456_freepbx" />
-# <UDF name="voipms_password" label="VoIP.ms Sub-Account Password" />
-# <UDF name="voipms_server" label="VoIP.ms Server" default="atlanta.voip.ms" example="atlanta.voip.ms" />
+# <UDF name="trunk_name" label="Trunk short name (no spaces)" default="trunk1" example="voipms" />
+# <UDF name="trunk_display" label="Trunk display name" default="SIP Trunk" example="VoIP.ms" />
+# <UDF name="sip_username" label="SIP Auth Username" example="123456_freepbx" />
+# <UDF name="sip_password" label="SIP Auth Password" />
+# <UDF name="sip_server" label="SIP Server Hostname" example="sip.provider.com" />
 # <UDF name="emergency_did" label="Emergency 911 Callback DID (10 digits)" example="5551234567" />
 # <UDF name="outbound_cid" label="Outbound Caller ID (10 digits)" example="5551234567" />
 # <UDF name="extension_start" label="First Extension Number" default="100" />
 # <UDF name="extension_count" label="Number of Extensions to Create" default="10" />
 export CLIENT_NAME="${CLIENT_NAME:-Example Corp}"
-export VOIPMS_USERNAME="${VOIPMS_USERNAME:-123456_example}"
-export VOIPMS_PASSWORD="${VOIPMS_PASSWORD:-changeme}"
-export VOIPMS_SERVER="${VOIPMS_SERVER:-atlanta.voip.ms}"
+export TRUNK_NAME="${TRUNK_NAME:-trunk1}"
+export TRUNK_DISPLAY="${TRUNK_DISPLAY:-SIP Trunk}"
+export SIP_USERNAME="${SIP_USERNAME:-changeme}"
+export SIP_PASSWORD="${SIP_PASSWORD:-changeme}"
+export SIP_SERVER="${SIP_SERVER:-sip.provider.com}"
 export EMERGENCY_DID="${EMERGENCY_DID:-5551234567}"
 export OUTBOUND_CID="${OUTBOUND_CID:-5551234567}"
 export EXTENSION_START="${EXTENSION_START:-200}"
@@ -213,12 +219,12 @@ echo "Phase 5 complete"
 # PHASE 6: VoIP.ms Trunk Configuration
 #############################################
 echo ""
-echo "==> PHASE 6: Configuring VoIP.ms PJSIP Trunk"
+echo "==> PHASE 6: Configuring PJSIP Trunk (${TRUNK_DISPLAY})"
 
-# Create VoIP.ms trunk via PJSIP custom configuration
+# Create SIP trunk via PJSIP custom configuration
 cat > /etc/asterisk/pjsip_custom.conf << EOF
 ; ========================================
-; VoIP.ms PJSIP Trunk Configuration
+; PJSIP Trunk Configuration: ${TRUNK_DISPLAY}
 ; Client: ${CLIENT_NAME}
 ; Created: $(date)
 ; ========================================
@@ -229,31 +235,31 @@ protocol = udp
 bind = 0.0.0.0
 
 ; Registration
-[voipms-reg]
+[${TRUNK_NAME}-reg]
 type = registration
 transport = transport-udp
-outbound_auth = voipms-auth
-client_uri = sip:${VOIPMS_USERNAME}@${VOIPMS_SERVER}:5060
-server_uri = sip:${VOIPMS_SERVER}:5060
+outbound_auth = ${TRUNK_NAME}-auth
+client_uri = sip:${SIP_USERNAME}@${SIP_SERVER}:5060
+server_uri = sip:${SIP_SERVER}:5060
 expiration = 180
 retry_interval = 60
-contact_user = ${VOIPMS_USERNAME}
+contact_user = ${SIP_USERNAME}
 
 ; Authentication
-[voipms-auth]
+[${TRUNK_NAME}-auth]
 type = auth
 auth_type = userpass
-username = ${VOIPMS_USERNAME}
-password = ${VOIPMS_PASSWORD}
+username = ${SIP_USERNAME}
+password = ${SIP_PASSWORD}
 
 ; Address of Record
-[voipms-aor]
+[${TRUNK_NAME}-aor]
 type = aor
-contact = sip:${VOIPMS_SERVER}:5060
+contact = sip:${SIP_SERVER}:5060
 qualify_frequency = 0
 
 ; Endpoint
-[voipms]
+[${TRUNK_NAME}]
 type = endpoint
 transport = transport-udp
 context = from-trunk
@@ -261,28 +267,28 @@ disallow = all
 allow = ulaw
 allow = alaw
 allow = g729
-from_user = ${VOIPMS_USERNAME}
-auth = voipms-auth
-outbound_auth = voipms-auth
-aors = voipms-aor
+from_user = ${SIP_USERNAME}
+auth = ${TRUNK_NAME}-auth
+outbound_auth = ${TRUNK_NAME}-auth
+aors = ${TRUNK_NAME}-aor
 rtp_symmetric = yes
 rewrite_contact = yes
 send_rpid = yes
 trust_id_inbound = yes
 direct_media = no
 
-; Identify incoming calls from VoIP.ms
-[voipms-identify]
+; Identify incoming calls
+[${TRUNK_NAME}-identify]
 type = identify
-endpoint = voipms
-match = ${VOIPMS_SERVER}
+endpoint = ${TRUNK_NAME}
+match = ${SIP_SERVER}
 EOF
 
 # Set proper permissions
 chown asterisk:asterisk /etc/asterisk/pjsip_custom.conf 2>/dev/null || true
 chmod 640 /etc/asterisk/pjsip_custom.conf
 
-echo "VoIP.ms trunk configuration created"
+echo "SIP trunk configuration created (${TRUNK_DISPLAY})"
 echo "Phase 6 complete"
 
 #############################################
@@ -381,7 +387,7 @@ cat > /etc/asterisk/extensions_custom.conf << EOF
 exten => 911,1,NoOp(Emergency 911 Call)
  same => n,Set(CALLERID(num)=${EMERGENCY_DID})
  same => n,Set(CALLERID(name)=Emergency)
- same => n,Dial(PJSIP/911@voipms,300)
+ same => n,Dial(PJSIP/911@${TRUNK_NAME},300)
  same => n,Hangup()
 
 exten => 9911,1,Goto(911,1)
@@ -389,30 +395,30 @@ exten => 9911,1,Goto(911,1)
 ; North American long distance (1+10 digits)
 exten => _1NXXNXXXXXX,1,NoOp(Outbound: \${EXTEN})
  same => n,Set(CALLERID(num)=${OUTBOUND_CID})
- same => n,Dial(PJSIP/\${EXTEN}@voipms)
+ same => n,Dial(PJSIP/\${EXTEN}@${TRUNK_NAME})
  same => n,Hangup()
 
 ; North American local (10 digits)
 exten => _NXXNXXXXXX,1,NoOp(Local: \${EXTEN})
  same => n,Set(CALLERID(num)=${OUTBOUND_CID})
- same => n,Dial(PJSIP/1\${EXTEN}@voipms)
+ same => n,Dial(PJSIP/1\${EXTEN}@${TRUNK_NAME})
  same => n,Hangup()
 
 ; 7-digit local
 exten => _NXXXXXX,1,NoOp(7-digit: \${EXTEN})
  same => n,Set(CALLERID(num)=${OUTBOUND_CID})
- same => n,Dial(PJSIP/\${EXTEN}@voipms)
+ same => n,Dial(PJSIP/\${EXTEN}@${TRUNK_NAME})
  same => n,Hangup()
 
 ; International (011+)
 exten => _011.,1,NoOp(International: \${EXTEN})
  same => n,Set(CALLERID(num)=${OUTBOUND_CID})
- same => n,Dial(PJSIP/\${EXTEN}@voipms)
+ same => n,Dial(PJSIP/\${EXTEN}@${TRUNK_NAME})
  same => n,Hangup()
 
-; VoIP.ms test numbers
-exten => 4747,1,Dial(PJSIP/4747@voipms)
-exten => 4443,1,Dial(PJSIP/4443@voipms)
+; Test numbers (VoIP.ms: 4747=DTMF, 4443=echo; adjust for your provider)
+exten => 4747,1,Dial(PJSIP/4747@${TRUNK_NAME})
+exten => 4443,1,Dial(PJSIP/4443@${TRUNK_NAME})
 EOF
 
 chown asterisk:asterisk /etc/asterisk/extensions_custom.conf 2>/dev/null || true

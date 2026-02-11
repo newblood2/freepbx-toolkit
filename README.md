@@ -1,6 +1,6 @@
 # FreePBX Toolkit
 
-Claude Code skills and shell scripts for managing FreePBX 17 systems with VoIP.ms trunks and Yealink phones.
+Claude Code skills and shell scripts for managing FreePBX 17 systems. Works with any SIP trunk provider and Yealink phones.
 
 ## Claude Code Skills
 
@@ -32,14 +32,14 @@ Skills will appear in Claude Code's `/` autocomplete. All skills accept a server
 
 ## Shell Scripts
 
-> **E911 Warning:** The `setup-911.sh` script and `stackscript.sh` create Asterisk dialplan routing for 911 calls, but this alone is **not sufficient** for emergency calling. You **must** separately configure E911 with your VoIP provider (e.g., VoIP.ms E911 portal) and register your physical address. VoIP-based 911 will fail if your internet or trunk is down. Always test after setup and understand the limitations before relying on VoIP for emergency services.
+> **E911 Warning:** The `setup-911.sh` script and `stackscript.sh` create Asterisk dialplan routing for 911 calls, but this alone is **not sufficient** for emergency calling. You **must** separately configure E911 with your VoIP provider and register your physical address. VoIP-based 911 will fail if your internet or trunk is down. Always test after setup and understand the limitations before relying on VoIP for emergency services.
 
 Standalone bash scripts for FreePBX server setup. Run these directly on the server or via SSH.
 
 | Script | Description |
 |--------|-------------|
-| [stackscript.sh](scripts/stackscript.sh) | Full Linode StackScript: installs FreePBX 17, configures VoIP.ms trunk, creates extensions, sets up 911 |
-| [setup-voipms-trunk.sh](scripts/setup-voipms-trunk.sh) | Configure a VoIP.ms PJSIP trunk via direct SQL |
+| [stackscript.sh](scripts/stackscript.sh) | Full Linode StackScript: installs FreePBX 17, configures SIP trunk, creates extensions, sets up 911 |
+| [setup-sip-trunk.sh](scripts/setup-sip-trunk.sh) | Configure a PJSIP trunk for any SIP provider via direct SQL |
 | [create-extensions.sh](scripts/create-extensions.sh) | Bulk-create PJSIP extensions with random passwords |
 | [setup-911.sh](scripts/setup-911.sh) | Configure 911 emergency routing with a callback DID |
 | [install-all.sh](scripts/install-all.sh) | Quick wrapper to run all setup scripts in order |
@@ -54,15 +54,25 @@ scp scripts/*.sh root@<server-ip>:/root/
 ssh root@<server-ip>
 chmod +x *.sh
 
-# Set up VoIP.ms trunk
-./setup-voipms-trunk.sh "subaccount_user" "password" "server.voip.ms"
+# Set up a SIP trunk (works with any provider)
+./setup-sip-trunk.sh mytrunk "sip_user" "sip_pass" "sip.provider.com" "My Provider"
 
 # Create 10 extensions starting at 200
 ./create-extensions.sh 200 10 "Company Name"
 
-# Set up 911 routing
-./setup-911.sh "5551234567"
+# Set up 911 routing (configure E911 with your provider first!)
+./setup-911.sh "5551234567" mytrunk
 ```
+
+### Tested Providers
+
+The trunk scripts use standard PJSIP registration and should work with any SIP trunk provider, including:
+- VoIP.ms
+- Telnyx
+- Flowroute
+- Twilio Elastic SIP
+- Bandwidth
+- Any provider offering standard SIP trunk credentials
 
 ## Documentation
 
