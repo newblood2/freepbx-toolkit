@@ -12,7 +12,7 @@ These tools manage **production phone systems** — they modify firewall rules, 
 - **Read every command** before approving it. These skills run commands as `root` over SSH — there is no undo for a dropped firewall rule or a bad database UPDATE.
 - **Test on a non-production system first** if possible. If not, have a console/out-of-band access method ready in case SSH access is lost.
 
-Skills that make changes (`firewall-trust`, `fix-nat`, `provision-phone`, `pbx-initialize`) have `disable-model-invocation: true` set, which prevents Claude from running them automatically. Do not override this.
+Skills that make changes (`firewall-trust`, `fix-nat`, `provision-phone`, `pbx-initialize`, `setup-graph-mail`) have `disable-model-invocation: true` set, which prevents Claude from running them automatically. Do not override this.
 
 ## Claude Code Skills
 
@@ -28,6 +28,7 @@ Drop the `skills/` directories into `~/.claude/skills/` to get slash commands in
 | [fix-nat](skills/fix-nat/) | `/fix-nat <server-ip>` | Fix direct_media and NAT settings |
 | [provision-phone](skills/provision-phone/) | `/provision-phone <server-ip> <phone-ip>` | Provision a Yealink phone |
 | [pbx-initialize](skills/pbx-initialize/) | `/pbx-initialize <server-ip>` | Full server initialization/onboarding |
+| [setup-graph-mail](skills/setup-graph-mail/) | `/setup-graph-mail <server-ip> <tenant> <client> <secret> <sender>` | Set up Microsoft Graph API voicemail-to-email |
 
 ### Installing Skills
 
@@ -55,6 +56,7 @@ Standalone bash scripts for FreePBX server setup. Run these directly on the serv
 | [create-extensions.sh](scripts/create-extensions.sh) | Bulk-create PJSIP extensions with random passwords |
 | [setup-911.sh](scripts/setup-911.sh) | Configure 911 emergency routing with a callback DID |
 | [install-all.sh](scripts/install-all.sh) | Quick wrapper to run all setup scripts in order |
+| [graph-sendmail.sh](scripts/graph-sendmail.sh) | Asterisk `mailcmd` replacement — sends voicemail emails via Microsoft Graph API |
 
 ### Usage
 
@@ -85,6 +87,21 @@ The trunk scripts use standard PJSIP registration and should work with any SIP t
 - Twilio Elastic SIP
 - Bandwidth
 - Any provider offering standard SIP trunk credentials
+
+### Microsoft 365 Voicemail-to-Email (Graph API)
+
+If your email provider doesn't support basic SMTP auth (Microsoft 365 has largely disabled it), use `graph-sendmail.sh` as a drop-in replacement for sendmail. It sends voicemail notification emails via Microsoft Graph API using OAuth2 client credentials.
+
+**Quick setup:**
+1. Register an app in [Microsoft Entra](https://entra.microsoft.com) with **Mail.Send** application permission
+2. Copy `graph-sendmail.sh` to `/usr/local/bin/` on the server
+3. Copy `graph-mail.conf.example` to `/etc/asterisk/graph-mail.conf` and fill in credentials
+4. Set the mail command in FreePBX: **Settings > Voicemail Admin > Settings > Email Config > Mail Command** = `/usr/local/bin/graph-sendmail.sh`
+5. Apply Config
+
+Or use the Claude Code skill: `/setup-graph-mail <server-ip> <tenant-id> <client-id> <client-secret> <sender-email>`
+
+See [graph-mail.conf.example](scripts/graph-mail.conf.example) for the config template.
 
 ## Documentation
 

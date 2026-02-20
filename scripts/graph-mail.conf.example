@@ -1,0 +1,19 @@
+# /etc/asterisk/graph-mail.conf
+# Microsoft Graph API credentials for voicemail-to-email
+#
+# Azure AD setup:
+#   1. Go to https://entra.microsoft.com > App registrations > New registration
+#   2. Note the Application (client) ID and Directory (tenant) ID
+#   3. Under Certificates & secrets > New client secret > copy the Value
+#   4. Under API permissions > Add permission > Microsoft Graph >
+#      Application permissions > Mail.Send > Grant admin consent
+#   5. (Recommended) Create an Application Access Policy to restrict
+#      which mailboxes the app can send from
+#
+# SENDER_EMAIL must be a real mailbox in your Microsoft 365 tenant.
+# The app's Mail.Send permission allows it to send as this address.
+
+TENANT_ID="your-azure-tenant-id"
+CLIENT_ID="your-app-client-id"
+CLIENT_SECRET="your-client-secret-value"
+SENDER_EMAIL="pbx@yourcompany.com"
