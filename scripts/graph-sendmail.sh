@@ -122,13 +122,20 @@ except Exception as e:
 ACCESS_TOKEN=$(get_token) || exit 1
 
 # --- Base64-encode the MIME message and send via Graph API ---
-MIME_B64=$(echo "$MIME_MESSAGE" | base64 -w 0)
+# Write base64 to a temp file to avoid shell argument length limits
+MIME_B64_FILE=$(mktemp)
+trap "rm -f '$MIME_B64_FILE'" EXIT
+printf '%s' "$MIME_MESSAGE" | base64 -w 0 > "$MIME_B64_FILE"
 
-HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 -X POST \
-    "https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-    -H "Content-Type: text/plain" \
-    -d "$MIME_B64" 2>&1)
+send_mail() {
+    curl -s -w "\n%{http_code}" --max-time 60 -X POST \
+        "https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail" \
+        -H "Authorization: Bearer $1" \
+        -H "Content-Type: text/plain" \
+        --data-binary "@${MIME_B64_FILE}"
+}
+
+HTTP_RESPONSE=$(send_mail "$ACCESS_TOKEN" 2>&1)
 
 HTTP_BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
 HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
@@ -146,11 +153,7 @@ if [ "$HTTP_CODE" = "401" ]; then
     rm -f "$TOKEN_FILE" "$TOKEN_EXPIRY_FILE"
     ACCESS_TOKEN=$(get_token) || exit 1
 
-    HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 -X POST \
-        "https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-        -H "Content-Type: text/plain" \
-        -d "$MIME_B64" 2>&1)
+    HTTP_RESPONSE=$(send_mail "$ACCESS_TOKEN" 2>&1)
 
     HTTP_BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
     HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
