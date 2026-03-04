@@ -32,6 +32,23 @@ curl -sk -b /tmp/yealink_cookies.txt -c /tmp/yealink_cookies.txt \
 curl -sk -b /tmp/yealink_cookies.txt "https://$PHONE_IP/api/auth/logout" -X POST
 ```
 
+### Change Web Admin Password
+
+**Endpoint:** `POST /api/auth/user`
+**Content-Type:** `application/json`
+
+```bash
+curl -sk -b /tmp/yealink_cookies.txt \
+  "https://$PHONE_IP/api/auth/user" -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"id":"admin","oldPwd":"currentpassword","newPwd":"newpassword","confirmPwd":"newpassword"}'
+```
+
+**Success:** `{"ret":"ok","data":true}`
+**Wrong old password:** `{"ret":"failed","data":false,"error":{"msg":"error_incorrect_old_password"}}`
+
+> **Note:** `writeconfig` with `security.user_password.admin` does NOT work for changing the web password. You must use this endpoint. Provisioning config files with `security.user_password.admin` also do not apply the password change.
+
 ## Configuration
 
 ### Write Config
