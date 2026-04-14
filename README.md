@@ -107,11 +107,12 @@ See [graph-mail.conf.example](scripts/graph-mail.conf.example) for the config te
 
 | Document | Description |
 |----------|-------------|
-| [Yealink API Reference](docs/yealink-api-reference.md) | REST API for Yealink T54W phones (v86+ firmware) — login, provisioning, config, reboot |
+| [FreePBX Reference](docs/freepbx-reference.md) | Comprehensive reference: GraphQL API, direct SQL, trunks, extensions, routes, troubleshooting |
+| [Yealink Reference](docs/yealink-reference.md) | Phone provisioning, REST API, config file format, line keys/BLF, NAT — covers firmware v86+ and legacy |
 
 ## FreePBX Database Notes
 
-Key schema details for FreePBX 17 (learned the hard way):
+Key schema details for FreePBX 17 (learned the hard way — full list in the [FreePBX Reference](docs/freepbx-reference.md)):
 
 - **`sip` table**: Columns are `id`, `keyword`, `data`, `flags` — the value column is `data`, NOT `val`
 - **`cdr` table** (in `asteriskcdrdb`): Context column is `dcontext`, NOT `context`
